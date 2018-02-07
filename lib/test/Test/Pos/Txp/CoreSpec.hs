@@ -19,11 +19,12 @@ import           Test.QuickCheck.Gen (Gen)
 
 import           Pos.Arbitrary.Txp ()
 import           Pos.Core (mkCoin)
-import           Pos.Core.Txp (Tx (..), TxIn (..), TxOut (..), checkTx)
+import           Pos.Core.Txp (Tx (..), TxIn (..), TxOut (..))
 import           Pos.Crypto (hash, whData, withHash)
 import           Pos.Data.Attributes (mkAttributes)
 import           Pos.Txp.Topsort (topsortTxs)
 import           Pos.Util (sublistN, _neHead)
+import           Pos.Util.Verification (runPVerify)
 
 spec :: Spec
 spec = describe "Txp.Core" $ do
@@ -53,11 +54,11 @@ spec = describe "Txp.Core" $ do
         "doesn't create Tx with non-positive coins in outputs"
 
 checkTxGood :: Tx -> Bool
-checkTxGood = isRight . checkTx
+checkTxGood = isRight . runPVerify
 
 checkTxBad :: Tx -> Bool
 checkTxBad UnsafeTx {..} =
-    all (\outs -> isLeft $ checkTx (UnsafeTx _txInputs outs _txAttributes)) badOutputs
+    all (\outs -> isLeft $ runPVerify (UnsafeTx _txInputs outs _txAttributes)) badOutputs
   where
     invalidateOut :: TxOut -> TxOut
     invalidateOut out = out {txOutValue = mkCoin 0}
@@ -138,6 +139,6 @@ txGen size = do
         NE.fromList <$> (replicateM outputsN $ TxOut <$> arbitrary <*> arbitrary)
     let tx = UnsafeTx inputs outputs (mkAttributes ())
     -- FIXME can't we convince ourselves that the Tx we made is valid?
-    case checkTx tx of
-        Left e   -> error $ "txGen: something went wrong: " <> e
+    case runPVerify tx of
+        Left e   -> error $ "txGen: something went wrong: " <> show e
         Right () -> pure tx

@@ -22,6 +22,7 @@ import           Pos.Core (HasConfiguration)
 import qualified Pos.Crypto as Crypto
 import           Pos.SafeCopy ()
 import           Pos.Ssc ()
+import           Pos.Util.Verification (runPVerify)
 
 import           Pos.Util.QuickCheck.Property (qcIsLeft, (.=.))
 import           Test.Pos.Configuration (withDefConfiguration, withDefInfraConfiguration)
@@ -261,7 +262,7 @@ signThenVerifyDifferentData t sk a b =
 proxySecretKeyCheckCorrect
     :: (HasConfiguration, Bi w) => Crypto.SecretKey -> Crypto.SecretKey -> w -> Bool
 proxySecretKeyCheckCorrect issuerSk delegateSk w =
-    isRight (Crypto.validateProxySecretKey proxySk)
+    isRight (runPVerify proxySk)
   where
     proxySk = Crypto.createPsk issuerSk (Crypto.toPublic delegateSk) w
 
@@ -272,7 +273,7 @@ proxySecretKeyCheckIncorrect issuerSk delegateSk pk2 w = do
             Crypto.createPsk issuerSk (Crypto.toPublic delegateSk) w
         wrongPsk = Crypto.UnsafeProxySecretKey { Crypto.pskIssuerPk = pk2, ..}
     (Crypto.toPublic issuerSk /= pk2) ==>
-        isLeft (Crypto.validateProxySecretKey wrongPsk)
+        isLeft (runPVerify wrongPsk)
 
 proxySignVerify
     :: (HasConfiguration, Bi a, Bi w, Eq w)

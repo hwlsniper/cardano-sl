@@ -1,23 +1,22 @@
 -- | Core delegation types.
 module Pos.Core.Delegation
        (
+       -- * Heavy/light delegation
          LightDlgIndices (..)
        , ProxySigLight
        , ProxySKLight
-
        , HeavyDlgIndex (..)
        , ProxySigHeavy
        , ProxySKHeavy
 
+       -- * Payload/proof
        , DlgPayload (..)
        , DlgProof
        , mkDlgProof
-       , checkDlgPayload
        ) where
 
 import           Universum
 
-import           Control.Monad.Except (MonadError, throwError)
 import           Data.Default (Default (def))
 import           Data.List (groupBy)
 import qualified Data.Text.Buildable
@@ -27,7 +26,8 @@ import           Serokell.Util (listJson, pairF)
 import           Pos.Binary.Class (Bi)
 import           Pos.Core.Slotting.Types (EpochIndex)
 import           Pos.Crypto (HasCryptoConfiguration, Hash, ProxySecretKey (..), ProxySignature,
-                             hash, validateProxySecretKey)
+                             hash)
+import           Pos.Util.Verification (PVerifiable (..), pverFail, pverField)
 
 ----------------------------------------------------------------------------
 -- Proxy signatures and signing keys
@@ -78,7 +78,7 @@ type ProxySigHeavy a = ProxySignature HeavyDlgIndex a
 type ProxySKHeavy = ProxySecretKey HeavyDlgIndex
 
 ----------------------------------------------------------------------------
--- Payload
+-- Payload/proof
 ----------------------------------------------------------------------------
 
 -- | 'DlgPayload' is put into 'MainBlock' and is a set of heavyweight
@@ -96,18 +96,16 @@ instance Buildable DlgPayload where
             ("proxy signing keys ("%int%" items): "%listJson%"\n")
             (length psks) psks
 
-checkDlgPayload ::
-       (HasCryptoConfiguration, MonadError Text m, Bi HeavyDlgIndex)
-    => DlgPayload
-    -> m ()
-checkDlgPayload (UnsafeDlgPayload proxySKs) = do
-    unless (null duplicates) $
-        throwError "Some of block's PSKs have the same issuer, which is prohibited"
-    forM_ proxySKs validateProxySecretKey
-  where
-    duplicates =
-        filter (\x -> length x > 1) $
-        groupBy ((==) `on` pskIssuerPk) $ sortOn pskIssuerPk proxySKs
+instance (HasCryptoConfiguration, Bi HeavyDlgIndex) => PVerifiable DlgPayload where
+    pverifyOne (UnsafeDlgPayload proxySKs) = do
+        let duplicates =
+                filter (\x -> length x > 1) $
+                groupBy ((==) `on` pskIssuerPk) $ sortOn pskIssuerPk proxySKs
+        unless (null duplicates) $
+            pverFail "Some of block's PSKs have the same issuer, which is prohibited"
+    pverify dp@(UnsafeDlgPayload x) = do
+        pverField "dlgPayload" $ forM_ x pverify
+        pverifyOne dp
 
 -- | Proof of delegation payload.
 type DlgProof = Hash DlgPayload

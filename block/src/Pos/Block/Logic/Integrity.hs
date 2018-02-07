@@ -26,7 +26,7 @@ import           Serokell.Util (VerificationRes (..), verifyGeneric)
 import qualified Pos.Binary.Class as Bi
 import           Pos.Binary.Core ()
 import           Pos.Binary.Update ()
-import qualified Pos.Block.Verification as V
+import           Pos.Block.Verification ()
 import           Pos.Core (BlockVersionData (..), ChainDifficulty, EpochOrSlot, HasConfiguration,
                            HasDifficulty (..), HasEpochIndex (..), HasEpochOrSlot (..),
                            HasHeaderHash (..), HeaderHash, SlotId (..), SlotLeaders, addressHash,
@@ -36,6 +36,7 @@ import           Pos.Core.Block (Block, BlockHeader (..), gebAttributes, gehAttr
                                  mebAttributes, mehAttributes)
 import           Pos.Data.Attributes (areAttributesKnown)
 import           Pos.Util.Chrono (NewestFirst (..), OldestFirst)
+import           Pos.Util.Verification (runPVerify)
 
 ----------------------------------------------------------------------------
 -- Header
@@ -60,9 +61,9 @@ data VerifyHeaderParams = VerifyHeaderParams
       -- ^ Check that header has no unknown attributes.
     } deriving (Eq, Show)
 
-verifyFromEither :: Text -> Either Text b -> VerificationRes
-verifyFromEither txt (Left reason)  = verifyGeneric [(False, txt <> ": " <> reason)]
-verifyFromEither txt (Right _) = verifyGeneric [(True, txt)]
+verifyFromEither :: Text -> Either Text () -> VerificationRes
+verifyFromEither txt (Left e) = VerFailure $ one $ txt <> ": " <> e
+verifyFromEither _ (Right _)  = VerSuccess
 
 -- CHECK: @verifyHeader
 -- | Check some predicates (determined by 'VerifyHeaderParams') about
@@ -86,7 +87,7 @@ verifyHeader
     :: HasConfiguration
     => VerifyHeaderParams -> BlockHeader -> VerificationRes
 verifyHeader VerifyHeaderParams {..} h =
-       verifyFromEither "internal header consistency" (V.verifyBlockHeader h)
+       verifyFromEither "internal header consistency" (first show $ runPVerify h)
     <> verifyGeneric checks
   where
     checks =
@@ -243,7 +244,7 @@ verifyBlock
     :: HasConfiguration
     => VerifyBlockParams -> Block -> VerificationRes
 verifyBlock VerifyBlockParams {..} blk = mconcat
-    [ verifyFromEither "internal block consistency" (V.verifyBlock blk)
+    [ verifyFromEither "internal block consistency" (first show $ runPVerify blk)
     , verifyHeader vbpVerifyHeader (getBlockHeader blk)
     , checkSize vbpMaxSize
     , bool mempty (verifyNoUnknown blk) vbpVerifyNoUnknown

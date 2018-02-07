@@ -31,7 +31,8 @@ import           Serokell.Util.ANSI (Color (Blue, Red), colorize)
 import           Pos.Aeson.Core ()
 import           Pos.Aeson.Update ()
 import           Pos.Core (ApplicationName, BlockVersion (..), SoftwareVersion (..))
-import           Pos.Core.Update (SystemTag (..), archHelper, osHelper, checkSystemTag)
+import           Pos.Core.Update (SystemTag (..), archHelper, osHelper)
+import           Pos.Util.Verification (runPVerify)
 
 ----------------------------------------------------------------------------
 -- Config itself
@@ -94,9 +95,9 @@ curSoftwareVersion = SoftwareVersion ourAppName (ccApplicationVersion updateConf
 currentSystemTag :: SystemTag
 currentSystemTag =
     $(do let tag :: SystemTag
-             tag = SystemTag (toText (osHelper buildOS ++ archHelper buildArch))
+             tag = UnsafeSystemTag $ toText (osHelper buildOS ++ archHelper buildArch)
              st :: Either Text ()
-             st = checkSystemTag tag
+             st = first show $ runPVerify tag
              color c s = "\n" <> colorize c s <> "\n"
          case st of Left e -> error . color Red . T.concat $
                                   ["Current system tag could not be calculated: ", e]

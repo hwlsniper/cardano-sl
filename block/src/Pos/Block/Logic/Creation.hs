@@ -448,7 +448,7 @@ createMainBody bodyLimit sId payload =
                 psks' <- takeSome psks
                 usPayload' <- includeUSPayload
                 return (psks', usPayload')
-        let dlgPay' = DlgPayload psks'
+        let dlgPay' = UnsafeDlgPayload psks'
         -- include transactions
         txs' <- takeSome txs
         -- return the resulting block

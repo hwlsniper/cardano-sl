@@ -165,12 +165,13 @@ proxySign t sk@(SecretKey delegateSk) psk m
 proxyVerify
     :: (HasCryptoConfiguration, Bi w, Bi a)
     => SignTag -> ProxySignature w a -> (w -> Bool) -> a -> Bool
-proxyVerify t ProxySignature{..} omegaPred m =
-    predCorrect && sigValid
+proxyVerify t psig omegaPred m =
+    and [predCorrect, sigValid]
   where
-    PublicKey issuerPk = pskIssuerPk psigPsk
-    PublicKey pdDelegatePkRaw = pskDelegatePk psigPsk
-    predCorrect = omegaPred (pskOmega psigPsk)
+    psk = psigPsk psig
+    PublicKey issuerPk = pskIssuerPk psk
+    PublicKey pdDelegatePkRaw = pskDelegatePk psk
+    predCorrect = omegaPred (pskOmega psk)
     sigValid =
         CC.verify
             pdDelegatePkRaw
@@ -180,4 +181,4 @@ proxyVerify t ProxySignature{..} omegaPred m =
                  , signTag t
                  , Bi.serialize' m
                  ])
-            psigSig
+            (psigSig psig)

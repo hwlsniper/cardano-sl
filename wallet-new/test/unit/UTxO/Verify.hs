@@ -267,7 +267,7 @@ verifyBlocksPrefix tip curSlot leaders lastSlots blocks = do
     pskUndo <- withExceptT VerifyBlocksError $ dlgVerifyBlocks blocks
     -}
     let pskUndo :: OldestFirst NE DlgUndo
-        pskUndo = map (const (DlgUndo [] HS.empty)) slogUndos
+        pskUndo = map (const (DlgUndo mempty HS.empty)) slogUndos
 
     -- Skip update verification
     {-

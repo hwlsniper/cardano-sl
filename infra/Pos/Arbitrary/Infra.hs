@@ -42,5 +42,5 @@ instance Arbitrary VerInfo where
     shrink = genericShrink
 
 instance HasConfiguration => Arbitrary (DataMsg ProxySKHeavy) where
-    arbitrary = genericArbitrary
-    shrink = genericShrink
+    arbitrary = DataMsg <$> arbitrary
+    shrink (DataMsg x) = map DataMsg $ shrink x

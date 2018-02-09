@@ -22,6 +22,7 @@ import           Universum
 import           Control.Lens (at, uses, (%=), (+=), (-=), (.=))
 import qualified Data.Cache.LRU as LRU
 import qualified Data.HashMap.Strict as HM
+import qualified Data.Set as S
 import           Mockable (CurrentTime, Mockable, currentTime)
 import           UnliftIO (MonadUnliftIO)
 
@@ -52,7 +53,9 @@ import           Pos.Util.Concurrent.PriorityLock (Priority (..))
 getDlgMempool
     :: (MonadIO m, MonadDBRead m, MonadDelegation ctx m, MonadMask m)
     => m DlgPayload
-getDlgMempool = UnsafeDlgPayload <$> (runDelegationStateAction $ uses dwProxySKPool HM.elems)
+getDlgMempool =
+    fmap (UnsafeDlgPayload . toList) $
+    runDelegationStateAction $ uses dwProxySKPool (S.fromList . HM.elems)
 
 -- | Clears delegation mempool.
 clearDlgMemPool

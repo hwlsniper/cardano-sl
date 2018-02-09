@@ -149,7 +149,7 @@ emptySscPayload = CertificatesPayload
     }
 
 emptyDlgPayload :: DlgPayload
-emptyDlgPayload = DlgPayload
+emptyDlgPayload = UnsafeDlgPayload
     { getDlgPayload = mempty
     }
 

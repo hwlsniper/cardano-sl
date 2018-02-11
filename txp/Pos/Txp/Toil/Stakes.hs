@@ -13,28 +13,23 @@ import qualified Data.HashMap.Strict as HM
 import qualified Data.HashSet as HS
 import           Formatting (sformat, (%))
 import           Serokell.Util.Text (listJson)
-import           System.Wlog (WithLogger, logDebug)
+import           System.Wlog (logDebug)
 
 import           Pos.Core (HasGenesisData, StakesList, coinToInteger, mkCoin, sumCoins,
                            unsafeIntegerToCoin)
 import           Pos.Core.Txp (Tx (..), TxAux (..), TxOutAux (..), TxUndo)
 import           Pos.Txp.Base (txOutStake)
-import           Pos.Txp.Toil.Class (MonadStakes (..), MonadStakesRead (..))
-
-type StakesMode m
-     = ( MonadStakes m
-       , WithLogger m
-       , HasGenesisData
-       )
+import           Pos.Txp.Toil.Monadic (GlobalToilM, getStake, getTotalStake, setStake,
+                                       setTotalStake)
 
 -- | Apply transactions to stakes.
-applyTxsToStakes :: StakesMode m => [(TxAux, TxUndo)] -> m ()
+applyTxsToStakes :: HasGenesisData => [(TxAux, TxUndo)] -> GlobalToilM ()
 applyTxsToStakes txun = do
     let (txOutPlus, txInMinus) = concatStakes txun
     recomputeStakes txOutPlus txInMinus
 
 -- | Rollback application of transactions to stakes.
-rollbackTxsStakes :: StakesMode m => [(TxAux, TxUndo)] -> m ()
+rollbackTxsStakes :: HasGenesisData => [(TxAux, TxUndo)] -> GlobalToilM ()
 rollbackTxsStakes txun = do
     let (txOutMinus, txInPlus) = concatStakes txun
     recomputeStakes txInPlus txOutMinus
@@ -45,10 +40,10 @@ rollbackTxsStakes txun = do
 
 -- Compute new stakeholder's stakes by lists of spent and received coins.
 recomputeStakes
-    :: StakesMode m
+    :: HasGenesisData
     => StakesList
     -> StakesList
-    -> m ()
+    -> GlobalToilM ()
 recomputeStakes plusDistr minusDistr = do
     let (plusStakeHolders, plusCoins) = unzip plusDistr
         (minusStakeHolders, minusCoins) = unzip minusDistr

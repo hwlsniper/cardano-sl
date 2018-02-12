@@ -7217,10 +7217,10 @@ inherit (pkgs) mesa;};
         ({ mkDerivation, aeson, base, cardano-sl-binary, cardano-sl-core
          , cardano-sl-crypto, cardano-sl-db, cardano-sl-infra
          , cardano-sl-lrc, cardano-sl-networking, cardano-sl-util, conduit
-         , cpphs, ether, formatting, generic-arbitrary, lens, log-warper
-         , lrucache, mmorph, mtl, QuickCheck, reflection, resourcet
-         , rocksdb-haskell-ng, safe-exceptions, serokell-util, stdenv
-         , text-format, time, transformers, universum, unliftio
+         , containers, cpphs, ether, formatting, generic-arbitrary, lens
+         , log-warper, lrucache, mmorph, mtl, QuickCheck, reflection
+         , resourcet, rocksdb-haskell-ng, safe-exceptions, serokell-util
+         , stdenv, text-format, time, transformers, universum, unliftio
          , unordered-containers
          }:
          mkDerivation {
@@ -7230,10 +7230,11 @@ inherit (pkgs) mesa;};
            libraryHaskellDepends = [
              aeson base cardano-sl-binary cardano-sl-core cardano-sl-crypto
              cardano-sl-db cardano-sl-infra cardano-sl-lrc cardano-sl-networking
-             cardano-sl-util conduit ether formatting generic-arbitrary lens
-             log-warper lrucache mmorph mtl QuickCheck reflection resourcet
-             rocksdb-haskell-ng safe-exceptions serokell-util text-format time
-             transformers universum unliftio unordered-containers
+             cardano-sl-util conduit containers ether formatting
+             generic-arbitrary lens log-warper lrucache mmorph mtl QuickCheck
+             reflection resourcet rocksdb-haskell-ng safe-exceptions
+             serokell-util text-format time transformers universum unliftio
+             unordered-containers
            ];
            libraryToolDepends = [ cpphs ];
            doHaddock = false;

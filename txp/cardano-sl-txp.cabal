@@ -33,6 +33,7 @@ library
     Pos.Txp.Toil.Utxo.Util
 
     Pos.Txp.Logic
+    Pos.Txp.Logic.Common
     Pos.Txp.Logic.Global
     Pos.Txp.Logic.Local
 

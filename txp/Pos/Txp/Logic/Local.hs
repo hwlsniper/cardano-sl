@@ -41,11 +41,12 @@ import           Pos.Reporting (reportError)
 import           Pos.Slotting (MonadSlots (..))
 import           Pos.StateLock (Priority (..), StateLock, StateLockMetrics, withStateLock)
 import qualified Pos.Txp.DB as DB
+import           Pos.Txp.Logic.Common (buildUtxoLookup)
 import           Pos.Txp.MemState (GenericTxpLocalData (..), GenericTxpLocalDataPure, MempoolExt,
                                    MonadTxpMem, TxpLocalWorkMode, askTxpMem, getLocalTxsMap,
                                    getUtxoModifier, modifyTxpLocalData, setTxpLocalData)
 import           Pos.Txp.Toil (LocalToilM, LocalToilState (..), ToilVerFailure (..), Utxo,
-                               UtxoLookup, mpLocalTxs, normalizeToil, processTx)
+                               UtxoLookup, mpLocalTxs, normalizeToil, processTx, utxoToLookup)
 import           Pos.Txp.Topsort (topsortTxs)
 import qualified Pos.Util.Modifier as MM
 import           Pos.Util.Util (HasLens')
@@ -70,13 +71,12 @@ txProcessTransaction itw =
 
 -- | Unsafe version of 'txProcessTransaction' which doesn't take a
 -- lock. Can be used in tests.
-txProcessTransactionNoLock
-    :: ( TxpLocalWorkMode ctx m
-       , MempoolExt m ~ ()
-       )
-    => (TxId, TxAux) -> m (Either ToilVerFailure ())
+txProcessTransactionNoLock ::
+       forall ctx m. (TxpLocalWorkMode ctx m, MempoolExt m ~ ())
+    => (TxId, TxAux)
+    -> m (Either ToilVerFailure ())
 txProcessTransactionNoLock =
-    txProcessTransactionAbstract (buildUtxoLookup . one) processTxHoisted
+    txProcessTransactionAbstract buildContext processTxHoisted
   where
     processTxHoisted ::
            BlockVersionData
@@ -84,6 +84,10 @@ txProcessTransactionNoLock =
         -> (TxId, TxAux)
         -> TxProcessingMode TxUndo
     processTxHoisted = mapExceptT (mapReaderT (mapStateT lift)) ... processTx
+    buildContext :: TxAux -> m UtxoLookup
+    buildContext txAux = do
+        utxoModifier <- getUtxoModifier
+        buildUtxoLookup utxoModifier [txAux]
 
 type TxProcessingMode =
     ExceptT ToilVerFailure (
@@ -166,28 +170,6 @@ txProcessTransactionAbstract buildPTxContext txAction itw@(txId, txAux) = report
             (Left err@(ToilTipsMismatch {})) -> reportError (pretty err)
             _                                -> pass
 
-buildUtxoLookup
-    :: forall m ctx.
-       ( MonadIO m
-       , MonadDBRead m
-       , MonadTxpMem (MempoolExt m) ctx m
-       )
-    => [TxAux] -> m UtxoLookup
-buildUtxoLookup txs = do
-    utxo <- concatMapM buildForOne txs
-    pure (\txIn -> utxo ^. at txIn)
-  where
-    buildForOne :: TxAux -> m Utxo
-    buildForOne txAux = do
-        let UnsafeTx {..} = taTx txAux
-        utxoModifier <- getUtxoModifier @(MempoolExt m)
-        let utxoLookupM txIn = MM.lookupM DB.getTxOut txIn utxoModifier
-        resolvedOuts <- mapM utxoLookupM _txInputs
-        return $
-            M.fromList $
-            catMaybes $
-            toList $ NE.zipWith (liftM2 (,) . Just) _txInputs resolvedOuts
-
 type TxpNormalizeMempoolMode ctx m =
     ( TxpLocalWorkMode ctx m
     , MonadSlots ctx m
@@ -215,7 +197,7 @@ txNormalizeAbstract normalizeAction =
         Just (siEpoch -> epoch) -> do
             globalTip <- GS.getTip
             localTxs <- getLocalTxsMap
-            utxo <- buildUtxoLookup (toList localTxs)
+            utxo <- buildUtxoLookup mempty (toList localTxs)
             bvd <- gsAdoptedBVData
             let initialState =
                     LocalToilState

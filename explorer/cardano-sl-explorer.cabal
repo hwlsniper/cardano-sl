@@ -43,11 +43,12 @@ library
 
                         Pos.Binary.Explorer
                         Pos.Explorer.Core.Types
+                        Pos.Explorer.Txp.Common
                         Pos.Explorer.Txp.Global
                         Pos.Explorer.Txp.Local
                         Pos.Explorer.Txp.Toil
-                        Pos.Explorer.Txp.Toil.Class
                         Pos.Explorer.Txp.Toil.Logic
+                        Pos.Explorer.Txp.Toil.Monadic
                         Pos.Explorer.Txp.Toil.Types
                         Pos.Explorer.BListener
 

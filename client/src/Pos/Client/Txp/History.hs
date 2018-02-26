@@ -53,7 +53,7 @@ import           Pos.Slotting (MonadSlots, getSlotStartPure, getSystemStartM)
 import           Pos.StateLock (StateLock, StateLockMetrics)
 import           Pos.Txp (MempoolExt, MonadTxpLocal, MonadTxpMem, Tx (..), TxAux (..), TxId, TxOut,
                           TxOutAux (..), TxWitness, TxpError (..), UtxoLookup, UtxoM, UtxoModifier,
-                          applyTxToUtxo, buildUtxoLookup, evalUtxoM, flattenTxPayload, genesisUtxo,
+                          applyTxToUtxo, buildUtxo, evalUtxoM, flattenTxPayload, genesisUtxo,
                           getLocalTxs, runUtxoM, topsortTxs, txOutAddress, txpProcessTx,
                           unGenesisUtxo, utxoGet, utxoToLookup)
 import           Pos.Util (eitherToThrow, maybeThrow)
@@ -241,7 +241,7 @@ getLocalHistoryDefault addrs = do
     localTxs <- getLocalTxs
     let ltxs = map mapper localTxs
     topsorted <- maybeThrow topsortErr (topsortTxs (view _1) ltxs)
-    utxoLookup <- buildUtxoLookup mempty (map snd localTxs)
+    utxoLookup <- utxoToLookup <$> buildUtxo mempty (map snd localTxs)
     return $
         evalUtxoM mempty utxoLookup $
         getRelatedTxsByAddrs addrs Nothing Nothing topsorted

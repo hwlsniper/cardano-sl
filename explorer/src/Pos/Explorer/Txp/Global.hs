@@ -20,9 +20,9 @@ import           Pos.Util.Chrono (NE, NewestFirst (..))
 import qualified Pos.Util.Modifier as MM
 
 import qualified Pos.Explorer.DB as GS
+import           Pos.Explorer.Txp.Local
 import           Pos.Explorer.Txp.Toil (EGlobalApplyToilMode, ExplorerExtra (..), eApplyToil,
                                         eRollbackToil)
-
 
 
 -- | Settings used for global transactions data processing used by explorer.

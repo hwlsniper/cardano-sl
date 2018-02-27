@@ -6,10 +6,9 @@ module Pos.Txp.Logic.Common
 
 import           Universum
 
-import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as M (fromList)
 
-import           Pos.Core.Txp (Tx (..), TxAux (..))
+import           Pos.Core.Txp (Tx (..), TxAux (..), TxIn, TxOutAux)
 import           Pos.DB.Class (MonadDBRead)
 import qualified Pos.Txp.DB as DB
 import           Pos.Txp.Toil (Utxo, UtxoModifier)
@@ -22,15 +21,13 @@ buildUtxo ::
     => UtxoModifier
     -> [TxAux]
     -> m Utxo
-buildUtxo utxoModifier txs =
-    concatMapM buildForOne txs
+buildUtxo utxoModifier txs = concatMapM buildForOne txs
   where
     buildForOne :: TxAux -> m Utxo
     buildForOne txAux = do
         let UnsafeTx {..} = taTx txAux
-        let utxoLookupM txIn = MM.lookupM DB.getTxOut txIn utxoModifier
-        resolvedOuts <- mapM utxoLookupM _txInputs
-        return $
-            M.fromList $
-            catMaybes $
-            toList $ NE.zipWith (liftM2 (,) . Just) _txInputs resolvedOuts
+        let utxoLookupM :: TxIn -> m (Maybe (TxIn, TxOutAux))
+            utxoLookupM txIn =
+                fmap (txIn, ) <$> MM.lookupM DB.getTxOut txIn utxoModifier
+        resolvedPairs <- mapM utxoLookupM _txInputs
+        return $ M.fromList $ catMaybes $ toList resolvedPairs

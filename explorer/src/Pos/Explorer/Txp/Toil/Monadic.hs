@@ -21,11 +21,17 @@ module Pos.Explorer.Txp.Toil.Monadic
        , ELocalToilM
        , explorerExtraMToELocalToilM
        , localToilMToELocalToilM
+
+       , EGlobalToilM
+       , explorerExtraMToEGlobalToilM
+       , globalToilMToEGlobalToilM
        ) where
 
 import           Universum
 
 import           Control.Lens (at, magnify, zoom, (%=), (.=))
+import           Control.Monad.Free (Free (..))
+import           Control.Monad.Morph (generalize, hoist)
 import           Control.Monad.Reader (mapReaderT)
 import           Control.Monad.State.Strict (mapStateT)
 import           System.Wlog (NamedPureLogger)
@@ -35,7 +41,8 @@ import           Pos.Explorer.Core (AddrHistory, TxExtra)
 import           Pos.Explorer.Txp.Toil.Types (ExplorerExtraLookup (..), ExplorerExtraModifier,
                                               eemAddrBalances, eemAddrHistories, eemLocalTxsExtra,
                                               eemNewUtxoSum)
-import           Pos.Txp.Toil (LocalToilM, LocalToilState, UtxoLookup)
+import           Pos.Txp.Toil (ExtendedGlobalToilM, GlobalToilM, LocalToilM, LocalToilState,
+                               StakesLookupF, UtxoLookup)
 import qualified Pos.Util.Modifier as MM
 
 ----------------------------------------------------------------------------
@@ -98,3 +105,19 @@ explorerExtraMToELocalToilM = mapReaderT (zoom _2) . magnify _2
 
 localToilMToELocalToilM :: LocalToilM a -> ELocalToilM a
 localToilMToELocalToilM = mapReaderT (mapStateT lift . zoom _1) . magnify _1
+
+----------------------------------------------------------------------------
+-- Monad used for global Toil in Explorer.
+----------------------------------------------------------------------------
+
+type EGlobalToilM
+     = ExtendedGlobalToilM ExplorerExtraLookup ExplorerExtraModifier
+
+explorerExtraMToEGlobalToilM :: ExplorerExtraM a -> EGlobalToilM a
+explorerExtraMToEGlobalToilM = mapReaderT (mapStateT f . zoom _2) . magnify _2
+  where
+    f :: NamedPureLogger Identity a -> NamedPureLogger (Free StakesLookupF) a
+    f = hoist generalize
+
+globalToilMToEGlobalToilM :: GlobalToilM a -> EGlobalToilM a
+globalToilMToEGlobalToilM = zoom _1 . magnify _1

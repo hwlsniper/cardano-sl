@@ -31,11 +31,11 @@ import           Pos.Core.Txp (Tx (..), TxAux (..), TxId, TxOut (..), TxUndo, Tx
 import           Pos.Crypto (WithHash (..), hash)
 import           Pos.Txp.Configuration (HasTxpConfiguration, memPoolLimitTx)
 import           Pos.Txp.Toil.Failure (ToilVerFailure (..))
-import           Pos.Txp.Toil.Monadic (GlobalToilM, LocalToilM, LocalToilState (..), UtxoM, hasTx,
-                                       memPoolSize, putTxWithUndo, utxoGet, utxoMToGlobalToilM,
+import           Pos.Txp.Toil.Monadic (GlobalToilM, LocalToilM, UtxoM, hasTx, memPoolSize,
+                                       putTxWithUndo, utxoGet, utxoMToGlobalToilM,
                                        utxoMToLocalToilM)
 import           Pos.Txp.Toil.Stakes (applyTxsToStakes, rollbackTxsStakes)
-import           Pos.Txp.Toil.Types (MemPool, TxFee (..), UtxoLookup, UtxoModifier)
+import           Pos.Txp.Toil.Types (TxFee (..))
 import qualified Pos.Txp.Toil.Utxo as Utxo
 import           Pos.Txp.Topsort (topsortTxs)
 import           Pos.Util (eitherToMonadError)
@@ -55,7 +55,7 @@ import           Pos.Util (eitherToMonadError)
 -- witnesses, addresses, attributes) must be known. Otherwise unknown
 -- data is just ignored.
 verifyToil ::
-       (HasConfiguration, HasTxpConfiguration)
+       (HasConfiguration)
     => BlockVersionData
     -> EpochIndex
     -> Bool
@@ -81,28 +81,6 @@ rollbackToil txun = do
 ----------------------------------------------------------------------------
 -- Local
 ----------------------------------------------------------------------------
-
--- processTx ::
---        (HasTxpConfiguration, HasConfiguration)
---     => BlockVersionData
---     -> EpochIndex
---     -> MemPool
---     -> UtxoModifier
---     -> UtxoLookup
---     -> (TxId, TxAux)
---     -> Either ToilVerFailure (TxUndo, LocalToilState)
--- processTx bvd curEpoch memPool utxoMod utxo tx =
---     case runState (runReaderT (runExceptT monadic) utxo) initialState of
---         (Left err, _)          -> Left err
---         (Right undo, newState) -> Right (undo, newState)
---   where
---     monadic = processTxDo bvd curEpoch tx
---     initialState =
---         LocalToilState
---             { _ltsMemPool = memPool
---             , _ltsUtxoModifier = utxoMod
---             , _ltsUndos = mempty -- not read, only written
---             }
 
 -- | Verify one transaction and also add it to mem pool and apply to utxo
 -- if transaction is valid.
@@ -144,7 +122,7 @@ normalizeToil bvd curEpoch txs = mapM_ normalize ordered
 -- Note: it doesn't consider/affect stakes! That's because we don't
 -- care about stakes for local txp.
 verifyAndApplyTx ::
-       (HasTxpConfiguration, HasConfiguration)
+       (HasConfiguration)
     => BlockVersionData
     -> EpochIndex
     -> Bool

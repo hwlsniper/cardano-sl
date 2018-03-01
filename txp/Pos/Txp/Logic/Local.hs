@@ -48,6 +48,7 @@ import           Pos.Txp.Toil (DBToil, GenericToilModifier (..), MonadUtxoRead (
                                runDBToil, runToilTLocal, runToilTLocalExtra, utxoGetReader)
 import           Pos.Txp.Topsort (topsortTxs)
 import           Pos.Util.Util (HasLens (..), HasLens')
+import           Pos.Util.Verification (runPVerify)
 
 -- Base context for tx processing in.
 data ProcessTxContext ext = ProcessTxContext
@@ -90,15 +91,18 @@ txProcessTransaction itw =
 
 -- | Unsafe version of 'txProcessTransaction' which doesn't take a
 -- lock. Can be used in tests.
-txProcessTransactionNoLock
-    :: ( TxpLocalWorkMode ctx m
-       , MempoolExt m ~ ()
-       )
-    => (TxId, TxAux) -> m (Either ToilVerFailure ())
+txProcessTransactionNoLock ::
+       forall ctx m. (TxpLocalWorkMode ctx m, MempoolExt m ~ ())
+    => (TxId, TxAux)
+    -> m (Either ToilVerFailure ())
 txProcessTransactionNoLock =
     txProcessTransactionAbstract
         buildProccessTxContext
-        processTx
+        processTxLocal
+  where
+    processTxLocal e t@(_,txAux) = do
+        either (throwError . ToilInconsistentTxAux . show) pure (runPVerify txAux)
+        processTx e t
 
 type TxProcessingMode pext ext =
     ExceptT ToilVerFailure (

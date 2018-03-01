@@ -43,7 +43,6 @@ import           Pos.Txp.Toil.Stakes (applyTxsToStakes, rollbackTxsStakes)
 import           Pos.Txp.Toil.Types (TxFee (..))
 import qualified Pos.Txp.Toil.Utxo as Utxo
 import           Pos.Txp.Topsort (topsortTxs)
-import           Pos.Util.Verification (runPVerify)
 
 ----------------------------------------------------------------------------
 -- Global
@@ -136,6 +135,7 @@ normalizeToil curEpoch txs = mapM_ normalize ordered
 -- Verify and Apply logic
 ----------------------------------------------------------------------------
 
+-- | Verifies and applies tx. TxAux is assumed to be purely verified.
 verifyAndApplyTx
     :: ( MonadUtxo m
        , MonadGState m
@@ -143,7 +143,6 @@ verifyAndApplyTx
        )
     => EpochIndex -> Bool -> (TxId, TxAux) -> m TxUndo
 verifyAndApplyTx curEpoch verifyVersions tx@(_, txAux) = do
-    either (throwError . ToilInconsistentTxAux . show) pure (runPVerify txAux)
     (txUndo, txFeeMB) <- Utxo.verifyTxUtxo ctx txAux
     verifyGState curEpoch txAux txFeeMB
     applyTxToUtxo' tx

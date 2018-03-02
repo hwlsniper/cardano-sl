@@ -22,6 +22,7 @@ type TxMapExtra = MM.MapModifier TxId TxExtra
 type UpdatedAddrHistories = HashMap Address AddrHistory
 type TxMapBalances = MM.MapModifier Address Coin
 
+-- | Modifier of extra data stored by explorer.
 data ExplorerExtraModifier = ExplorerExtraModifier
     { _eemLocalTxsExtra :: !TxMapExtra
     , _eemAddrHistories :: !UpdatedAddrHistories
@@ -40,13 +41,7 @@ instance Default ExplorerExtraModifier where
         , _eemNewUtxoSum    = Nothing
         }
 
--- data ExplorerExtraTxp = ExplorerExtraTxp
---     { eetTxExtra       :: !(HashMap TxId TxExtra)
---     , eetAddrHistories :: !(HashMap Address AddrHistory)
---     , eetAddrBalances  :: !(HashMap Address Coin)
---     , eetUtxoSum       :: !Integer
---     }
-
+-- | Functions to get extra data stored by explorer.
 data ExplorerExtraLookup = ExplorerExtraLookup
     { eelGetTxExtra     :: TxId -> Maybe TxExtra
     , eelGetAddrHistory :: Address -> AddrHistory

@@ -2,7 +2,7 @@
 
 -- | Some monads used in Toil and primitive actions.
 
-module Pos.Txp.Toil.Monadic
+module Pos.Txp.Toil.Monad
        (
          -- * Monadic Utxo
          UtxoM
@@ -22,6 +22,8 @@ module Pos.Txp.Toil.Monadic
        , hasTx
        , memPoolSize
        , putTxWithUndo
+       , ExtendedLocalToilM
+       , natLocalToilM
 
          -- * Monadic global Toil
        , StakesLookupF
@@ -32,14 +34,14 @@ module Pos.Txp.Toil.Monadic
        , GlobalToilEnv (..)
        , GlobalToilMBase
        , GlobalToilM
-       , ExtendedGlobalToilM
        , runGlobalToilMBase
        , runGlobalToilM
-       , execGlobalToilM
        , getStake
        , getTotalStake
        , setStake
        , setTotalStake
+       , ExtendedGlobalToilM
+       , natGlobalToilM
 
          -- * Conversions
        , utxoMToLocalToilM
@@ -51,6 +53,7 @@ import           Universum
 import           Control.Lens (at, magnify, makeLenses, zoom, (%=), (+=), (.=))
 import           Control.Monad.Free (Free (..), foldFree)
 import           Control.Monad.Reader (mapReaderT)
+import           Control.Monad.State.Strict (mapStateT)
 import           Data.Default (def)
 import           Fmt ((+|), (|+))
 import           System.Wlog (NamedPureLogger, WithLogger, launchNamedPureLog)
@@ -107,6 +110,7 @@ utxoDel id = utxoGet id >>= \case
 -- Monad used for local Toil and some actions.
 ----------------------------------------------------------------------------
 
+-- | Mutable state used in local Toil.
 data LocalToilState = LocalToilState
     { _ltsMemPool      :: !MemPool
     , _ltsUtxoModifier :: !UtxoModifier
@@ -115,6 +119,7 @@ data LocalToilState = LocalToilState
 
 makeLenses ''LocalToilState
 
+-- | Monad in which local Toil happens.
 type LocalToilM = ReaderT UtxoLookup (State LocalToilState)
 
 -- | Check whether Tx with given identifier is stored in the pool.
@@ -134,6 +139,20 @@ putTxWithUndo id tx undo =
 memPoolSize :: LocalToilM Int
 memPoolSize = use $ ltsMemPool . mpSize
 
+-- | Extended version of 'LocalToilM'. It allows to put extra data
+-- into reader context, extra state and also adds logging
+-- capabilities. It's needed for explorer which has more complicated
+-- transaction processing.
+type ExtendedLocalToilM extraEnv extraState =
+    ReaderT (UtxoLookup, extraEnv) (
+        StateT (LocalToilState, extraState) (
+            NamedPureLogger Identity
+    ))
+
+-- | Natural transformation from 'LocalToilM to 'ExtendedLocalToilM'.
+natLocalToilM :: LocalToilM a -> ExtendedLocalToilM __ ___ a
+natLocalToilM = mapReaderT (mapStateT lift . zoom _1) . magnify _1
+
 ----------------------------------------------------------------------------
 -- Monad used for global Toil and some actions.
 ----------------------------------------------------------------------------
@@ -144,6 +163,7 @@ data StakesLookupF a =
                   (Maybe Coin -> a)
     deriving (Functor)
 
+-- | Mutable state used in global Toil.
 data GlobalToilState = GlobalToilState
     { _gtsUtxoModifier :: !UtxoModifier
     , _gtsStakesView   :: !StakesView
@@ -156,6 +176,7 @@ defGlobalToilState =
 
 makeLenses ''GlobalToilState
 
+-- | Immutable environment used in global Toil.
 data GlobalToilEnv = GlobalToilEnv
     { _gteUtxo       :: !UtxoLookup
     , _gteTotalStake :: !Coin
@@ -163,19 +184,12 @@ data GlobalToilEnv = GlobalToilEnv
 
 makeLenses ''GlobalToilEnv
 
+-- | Base monad in which global Toil happens.
 type GlobalToilMBase = NamedPureLogger (Free StakesLookupF)
 
+-- | Monad in which global Toil happens.
 type GlobalToilM
      = ReaderT GlobalToilEnv (StateT GlobalToilState GlobalToilMBase)
-
--- | Extended version of 'GlobalToilM'. It allows to put extra data
--- into reader context and extra state. It's needed for explorer which
--- has more complicated transaction processing.
-type ExtendedGlobalToilM extraEnv extraState =
-    ReaderT (GlobalToilEnv, extraEnv) (
-        StateT (GlobalToilState, extraState) (
-            GlobalToilMBase
-    ))
 
 -- | Run given action in some monad capable of getting stakeholders'
 -- stakes and logging.
@@ -203,16 +217,7 @@ runGlobalToilM ::
 runGlobalToilM env gts stakeGetter =
     runGlobalToilMBase stakeGetter . usingStateT gts . usingReaderT env
 
--- | Version of 'runGlobalToilM' which discards action's result.
-execGlobalToilM ::
-       forall m a. (WithLogger m)
-    => GlobalToilEnv
-    -> GlobalToilState
-    -> (StakeholderId -> m (Maybe Coin))
-    -> GlobalToilM a
-    -> m GlobalToilState
-execGlobalToilM = fmap snd ... runGlobalToilM
-
+-- | Get stake of a given stakeholder.
 getStake :: StakeholderId -> GlobalToilM (Maybe Coin)
 getStake id =
     (<|>) <$> lift (use (gtsStakesView . svStakes . at id)) <*> baseLookup id
@@ -220,15 +225,31 @@ getStake id =
     baseLookup :: StakeholderId -> GlobalToilM (Maybe Coin)
     baseLookup i = lift $ lift $ lift $ Free $ StakesLookupF i pure
 
+-- | Get total stake of all stakeholders.
 getTotalStake :: GlobalToilM Coin
 getTotalStake =
     maybe (view gteTotalStake) pure =<< use (gtsStakesView . svTotal)
 
+-- | Set stake of a given stakeholder.
 setStake :: StakeholderId -> Coin -> GlobalToilM ()
 setStake id c = gtsStakesView . svStakes . at id .= Just c
 
+-- | Set total stake of all stakeholders.
 setTotalStake :: Coin -> GlobalToilM ()
 setTotalStake c = gtsStakesView . svTotal .= Just c
+
+-- | Extended version of 'GlobalToilM'. It allows to put extra data
+-- into reader context and extra state. It's needed for explorer which
+-- has more complicated transaction processing.
+type ExtendedGlobalToilM extraEnv extraState =
+    ReaderT (GlobalToilEnv, extraEnv) (
+        StateT (GlobalToilState, extraState) (
+            GlobalToilMBase
+    ))
+
+-- | Natural transformation from 'GlobalToilM to 'ExtendedGlobalToilM'.
+natGlobalToilM :: GlobalToilM a -> ExtendedGlobalToilM __ ___ a
+natGlobalToilM = zoom _1 . magnify _1
 
 ----------------------------------------------------------------------------
 -- Conversions

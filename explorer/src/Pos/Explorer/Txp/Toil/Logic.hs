@@ -24,16 +24,15 @@ import           Pos.Core (Address, BlockVersionData, Coin, EpochIndex, HasConfi
 import           Pos.Core.Txp (Tx (..), TxAux (..), TxId, TxOut (..), TxOutAux (..), TxUndo, _TxOut)
 import           Pos.Crypto (WithHash (..), hash)
 import           Pos.Explorer.Core (AddrHistory, TxExtra (..))
-import           Pos.Explorer.Txp.Toil.Monadic (EGlobalToilM, ELocalToilM, ExplorerExtraM,
-                                                delAddrBalance, delTxExtra,
-                                                explorerExtraMToEGlobalToilM,
-                                                explorerExtraMToELocalToilM, getAddrBalance,
-                                                getAddrHistory, getTxExtra, getUtxoSum,
-                                                globalToilMToEGlobalToilM, localToilMToELocalToilM,
-                                                putAddrBalance, putTxExtra, putUtxoSum,
-                                                updateAddrHistory)
+import           Pos.Explorer.Txp.Toil.Monad (EGlobalToilM, ELocalToilM, ExplorerExtraM,
+                                              delAddrBalance, delTxExtra,
+                                              explorerExtraMToEGlobalToilM,
+                                              explorerExtraMToELocalToilM, getAddrBalance,
+                                              getAddrHistory, getTxExtra, getUtxoSum,
+                                              putAddrBalance, putTxExtra, putUtxoSum,
+                                              updateAddrHistory)
 import           Pos.Txp.Configuration (HasTxpConfiguration)
-import           Pos.Txp.Toil (ToilVerFailure (..))
+import           Pos.Txp.Toil (ToilVerFailure (..), natGlobalToilM, natLocalToilM)
 import qualified Pos.Txp.Toil as Txp
 import           Pos.Txp.Topsort (topsortTxs)
 import           Pos.Util.Chrono (NewestFirst (..))
@@ -52,7 +51,7 @@ eApplyToil ::
     -> HeaderHash
     -> EGlobalToilM ()
 eApplyToil mTxTimestamp txun hh = do
-    globalToilMToEGlobalToilM $ Txp.applyToil txun
+    natGlobalToilM $ Txp.applyToil txun
     explorerExtraMToEGlobalToilM $ mapM_ applier $ zip [0..] txun
   where
     applier :: (Word32, (TxAux, TxUndo)) -> ExplorerExtraM ()
@@ -69,7 +68,7 @@ eApplyToil mTxTimestamp txun hh = do
 -- | Rollback transactions from one block.
 eRollbackToil :: HasConfiguration => [(TxAux, TxUndo)] -> EGlobalToilM ()
 eRollbackToil txun = do
-    globalToilMToEGlobalToilM $ Txp.rollbackToil txun
+    natGlobalToilM $ Txp.rollbackToil txun
     explorerExtraMToEGlobalToilM $ mapM_ extraRollback $ reverse txun
   where
     extraRollback :: (TxAux, TxUndo) -> ExplorerExtraM ()
@@ -98,7 +97,7 @@ eProcessTx ::
     -> (TxUndo -> TxExtra)
     -> ExceptT ToilVerFailure ELocalToilM ()
 eProcessTx bvd curEpoch tx@(id, aux) createExtra = do
-    undo <- mapExceptT localToilMToELocalToilM $ Txp.processTx bvd curEpoch tx
+    undo <- mapExceptT natLocalToilM $ Txp.processTx bvd curEpoch tx
     lift $ explorerExtraMToELocalToilM $ do
         let extra = createExtra undo
         putTxExtraWithHistory id extra $ getTxRelatedAddrs aux undo

@@ -1,4 +1,4 @@
--- | Functions operating on UTXO.
+-- | Functions operating on UTXO (in 'UtxoM' monad).
 
 module Pos.Txp.Toil.Utxo.Functions
        ( VTxContext (..)
@@ -29,7 +29,7 @@ import           Pos.Crypto (SignTag (SignRedeemTx, SignTx), WithHash (..), chec
 import           Pos.Data.Attributes (Attributes (attrRemain), areAttributesKnown)
 import           Pos.Script (Script (..), isKnownScriptVersion, txScriptCheck)
 import           Pos.Txp.Toil.Failure (ToilVerFailure (..), WitnessVerFailure (..))
-import           Pos.Txp.Toil.Monadic (UtxoM, utxoDel, utxoGet, utxoPut)
+import           Pos.Txp.Toil.Monad (UtxoM, utxoDel, utxoGet, utxoPut)
 import           Pos.Txp.Toil.Types (TxFee (..))
 import           Pos.Util (eitherToMonadError)
 

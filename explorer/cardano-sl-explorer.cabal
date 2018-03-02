@@ -48,7 +48,7 @@ library
                         Pos.Explorer.Txp.Local
                         Pos.Explorer.Txp.Toil
                         Pos.Explorer.Txp.Toil.Logic
-                        Pos.Explorer.Txp.Toil.Monadic
+                        Pos.Explorer.Txp.Toil.Monad
                         Pos.Explorer.Txp.Toil.Types
                         Pos.Explorer.BListener
 

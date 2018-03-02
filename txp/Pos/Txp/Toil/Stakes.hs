@@ -1,6 +1,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
--- | Functions which work in 'MonadStakes' and are part of Toil logic.
+-- | Functions which work in 'GlobalToilM' and are part of Toil logic
+-- related to stakes.
 
 module Pos.Txp.Toil.Stakes
        ( applyTxsToStakes
@@ -19,8 +20,7 @@ import           Pos.Core (HasGenesisData, StakesList, coinToInteger, mkCoin, su
                            unsafeIntegerToCoin)
 import           Pos.Core.Txp (Tx (..), TxAux (..), TxOutAux (..), TxUndo)
 import           Pos.Txp.Base (txOutStake)
-import           Pos.Txp.Toil.Monadic (GlobalToilM, getStake, getTotalStake, setStake,
-                                       setTotalStake)
+import           Pos.Txp.Toil.Monad (GlobalToilM, getStake, getTotalStake, setStake, setTotalStake)
 
 -- | Apply transactions to stakes.
 applyTxsToStakes :: HasGenesisData => [(TxAux, TxUndo)] -> GlobalToilM ()

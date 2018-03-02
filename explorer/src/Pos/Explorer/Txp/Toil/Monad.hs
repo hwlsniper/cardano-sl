@@ -1,8 +1,8 @@
 {-# LANGUAGE TypeFamilies #-}
 
--- | Extra type classes used for explorer's toil.
+-- | Monads used for explorer's toil.
 
-module Pos.Explorer.Txp.Toil.Monadic
+module Pos.Explorer.Txp.Toil.Monad
        (
          ExplorerExtraM
 
@@ -20,11 +20,9 @@ module Pos.Explorer.Txp.Toil.Monadic
 
        , ELocalToilM
        , explorerExtraMToELocalToilM
-       , localToilMToELocalToilM
 
        , EGlobalToilM
        , explorerExtraMToEGlobalToilM
-       , globalToilMToEGlobalToilM
        ) where
 
 import           Universum
@@ -41,8 +39,7 @@ import           Pos.Explorer.Core (AddrHistory, TxExtra)
 import           Pos.Explorer.Txp.Toil.Types (ExplorerExtraLookup (..), ExplorerExtraModifier,
                                               eemAddrBalances, eemAddrHistories, eemLocalTxsExtra,
                                               eemNewUtxoSum)
-import           Pos.Txp.Toil (ExtendedGlobalToilM, GlobalToilM, LocalToilM, LocalToilState,
-                               StakesLookupF, UtxoLookup)
+import           Pos.Txp.Toil (ExtendedGlobalToilM, ExtendedLocalToilM, StakesLookupF)
 import qualified Pos.Util.Modifier as MM
 
 ----------------------------------------------------------------------------
@@ -94,17 +91,10 @@ putUtxoSum utxoSum = eemNewUtxoSum .= Just utxoSum
 -- Monad used for local Toil in Explorer.
 ----------------------------------------------------------------------------
 
-type ELocalToilM
-     = ReaderT (UtxoLookup, ExplorerExtraLookup) (
-       StateT  (LocalToilState, ExplorerExtraModifier) (
-       NamedPureLogger
-       Identity))
+type ELocalToilM = ExtendedLocalToilM ExplorerExtraLookup ExplorerExtraModifier
 
 explorerExtraMToELocalToilM :: ExplorerExtraM a -> ELocalToilM a
 explorerExtraMToELocalToilM = mapReaderT (zoom _2) . magnify _2
-
-localToilMToELocalToilM :: LocalToilM a -> ELocalToilM a
-localToilMToELocalToilM = mapReaderT (mapStateT lift . zoom _1) . magnify _1
 
 ----------------------------------------------------------------------------
 -- Monad used for global Toil in Explorer.
@@ -118,6 +108,3 @@ explorerExtraMToEGlobalToilM = mapReaderT (mapStateT f . zoom _2) . magnify _2
   where
     f :: NamedPureLogger Identity a -> NamedPureLogger (Free StakesLookupF) a
     f = hoist generalize
-
-globalToilMToEGlobalToilM :: GlobalToilM a -> EGlobalToilM a
-globalToilMToEGlobalToilM = zoom _1 . magnify _1

@@ -2,8 +2,8 @@
 {-# LANGUAGE Rank2Types          #-}
 {-# LANGUAGE TypeFamilies        #-}
 
--- | All logic of Toil.  It operates in terms of MonadUtxo,
--- MonadStakes and MonadTxPool.
+-- | All high-level logic of Toil.  It operates in 'LocalToilM' and
+-- 'GlobalToilM'.
 
 module Pos.Txp.Toil.Logic
        ( verifyToil
@@ -31,9 +31,8 @@ import           Pos.Core.Txp (Tx (..), TxAux (..), TxId, TxOut (..), TxUndo, Tx
 import           Pos.Crypto (WithHash (..), hash)
 import           Pos.Txp.Configuration (HasTxpConfiguration, memPoolLimitTx)
 import           Pos.Txp.Toil.Failure (ToilVerFailure (..))
-import           Pos.Txp.Toil.Monadic (GlobalToilM, LocalToilM, UtxoM, hasTx, memPoolSize,
-                                       putTxWithUndo, utxoGet, utxoMToGlobalToilM,
-                                       utxoMToLocalToilM)
+import           Pos.Txp.Toil.Monad (GlobalToilM, LocalToilM, UtxoM, hasTx, memPoolSize,
+                                     putTxWithUndo, utxoGet, utxoMToGlobalToilM, utxoMToLocalToilM)
 import           Pos.Txp.Toil.Stakes (applyTxsToStakes, rollbackTxsStakes)
 import           Pos.Txp.Toil.Types (TxFee (..))
 import qualified Pos.Txp.Toil.Utxo as Utxo

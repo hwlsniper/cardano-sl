@@ -16,8 +16,7 @@ import           Pos.Core (BlockVersionData, EpochIndex, Timestamp)
 import           Pos.Core.Txp (TxAux (..), TxId)
 import           Pos.Slotting (MonadSlots (getCurrentSlot), getSlotStart)
 import           Pos.StateLock (Priority (..), StateLock, StateLockMetrics, withStateLock)
-import           Pos.Txp.Logic.Local (ExtendedLocalToilM, txNormalizeAbstract,
-                                      txProcessTransactionAbstract)
+import           Pos.Txp.Logic.Local (txNormalizeAbstract, txProcessTransactionAbstract)
 import           Pos.Txp.MemState (MempoolExt, TxpLocalWorkMode, getTxpExtra)
 import           Pos.Txp.Toil (ToilVerFailure (..), Utxo)
 import qualified Pos.Util.Modifier as MM
@@ -25,8 +24,9 @@ import           Pos.Util.Util (HasLens')
 
 import           Pos.Explorer.Core (TxExtra (..))
 import           Pos.Explorer.Txp.Common (buildExplorerExtraLookup)
-import           Pos.Explorer.Txp.Toil (ExplorerExtraLookup (..), ExplorerExtraModifier,
-                                        eNormalizeToil, eProcessTx, eemLocalTxsExtra)
+import           Pos.Explorer.Txp.Toil (ELocalToilM, ExplorerExtraLookup (..),
+                                        ExplorerExtraModifier, eNormalizeToil, eProcessTx,
+                                        eemLocalTxsExtra)
 
 
 type ETxpLocalWorkMode ctx m =
@@ -64,8 +64,7 @@ eTxProcessTransactionNoLock itw = getCurrentSlot >>= \case
         -> BlockVersionData
         -> EpochIndex
         -> (TxId, TxAux)
-        -> ExceptT ToilVerFailure
-             (ExtendedLocalToilM ExplorerExtraLookup ExplorerExtraModifier) ()
+        -> ExceptT ToilVerFailure ELocalToilM ()
     processTx' mTxTimestamp bvd epoch tx =
         eProcessTx bvd epoch tx (TxExtra Nothing mTxTimestamp)
 
@@ -84,7 +83,7 @@ eTxNormalize = do
         -> BlockVersionData
         -> EpochIndex
         -> HashMap TxId TxAux
-        -> ExtendedLocalToilM ExplorerExtraLookup ExplorerExtraModifier ()
+        -> ELocalToilM ()
     normalizeToil' extras bvd epoch txs =
         let toNormalize = HM.toList $ HM.intersectionWith (,) txs extras
         in eNormalizeToil bvd epoch toNormalize

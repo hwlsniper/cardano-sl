@@ -1,7 +1,6 @@
 {-# LANGUAGE TypeFamilies #-}
 
--- | Types used for managing of transactions
--- and synchronization with database.
+-- | Types used for pure transaction processing (aka Toil).
 
 module Pos.Txp.Toil.Types
        ( Utxo
@@ -172,6 +171,3 @@ applyUtxoModToAddrCoinMap modifier (addrCoins, utxo) = result
     -- Add coins to balances
     result :: HashMap Address Coin
     result = foldl' (flip $ uncurry $ HM.insertWith unsafeAddCoin) addrCoinsRest addrCoinsAdditions
-
-instance Default UndoMap where
-    def = mempty

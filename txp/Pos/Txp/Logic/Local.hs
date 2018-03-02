@@ -11,19 +11,15 @@ module Pos.Txp.Logic.Local
        , txNormalize
        , txGetPayload
 
-       -- Utils to processing and nomralization tx
-       , ExtendedLocalToilM
+       -- * Utils for transaction processing and mempool normalization
        , txProcessTransactionAbstract
        , txNormalizeAbstract
        ) where
 
 import           Universum
 
-import           Control.Lens (magnify, zoom)
 import           Control.Monad.Except (mapExceptT, runExceptT, throwError)
 import           Control.Monad.Morph (generalize)
-import           Control.Monad.Reader (mapReaderT)
-import           Control.Monad.State.Strict (mapStateT)
 import           Data.Default (Default (def))
 import qualified Data.HashMap.Strict as HM
 import           Formatting (build, sformat, (%))
@@ -42,8 +38,9 @@ import           Pos.Txp.Logic.Common (buildUtxo)
 import           Pos.Txp.MemState (GenericTxpLocalData (..), GenericTxpLocalDataPure, MempoolExt,
                                    MonadTxpMem, TxpLocalWorkMode, askTxpMem, getLocalTxsMap,
                                    getUtxoModifier, modifyTxpLocalData, setTxpLocalData)
-import           Pos.Txp.Toil (LocalToilM, LocalToilState (..), ToilVerFailure (..), Utxo,
-                               UtxoLookup, mpLocalTxs, normalizeToil, processTx, utxoToLookup)
+import           Pos.Txp.Toil (ExtendedLocalToilM, LocalToilState (..), ToilVerFailure (..), Utxo,
+                               UtxoLookup, mpLocalTxs, natLocalToilM, normalizeToil, processTx,
+                               utxoToLookup)
 import           Pos.Txp.Topsort (topsortTxs)
 import           Pos.Util.Util (HasLens')
 
@@ -53,19 +50,6 @@ type TxpProcessTransactionMode ctx m =
     , HasLens' ctx StateLockMetrics
     , MempoolExt m ~ ()
     )
-
--- | Extended version of 'LocalToilM'. It allows to put extra data
--- into reader context, extra state and also adds logging
--- capabilities. It's needed for explorer which has more complicated
--- transaction processing.
-type ExtendedLocalToilM extraEnv extraState =
-    ReaderT (UtxoLookup, extraEnv) (
-        StateT (LocalToilState, extraState) (
-            NamedPureLogger Identity
-    ))
-
-natLocalToilM :: LocalToilM a -> ExtendedLocalToilM __ ___ a
-natLocalToilM = mapReaderT (mapStateT lift . zoom _1) . magnify _1
 
 -- | Process transaction. 'TxId' is expected to be the hash of
 -- transaction in 'TxAux'. Separation is supported for optimization

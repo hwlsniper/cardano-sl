@@ -25,7 +25,7 @@ library
     Pos.Txp.Toil
     Pos.Txp.Toil.Failure
     Pos.Txp.Toil.Logic
-    Pos.Txp.Toil.Monadic
+    Pos.Txp.Toil.Monad
     Pos.Txp.Toil.Stakes
     Pos.Txp.Toil.Types
     Pos.Txp.Toil.Utxo
